@@ -4,16 +4,29 @@
     <h2>Book Appointment</h2>
     {% if error %}
         <div class="alert alert-danger">{{ error }}</div>
-    {% elif slot %}
-        <div class="alert alert-info mb-3">
-            <strong>Next Available Slot:</strong><br>
-            Counselor: {{ slot.counselor.name }}<br>
-            Date & Time: {{ slot.slot_time }}
+    {% elif slots %}
+        <p>Select an available slot:</p>
+        <div class="row">
+            {% for slot in slots %}
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ slot.counselor.name }}</h5>
+                            <p class="card-text">
+                                <strong>Location:</strong> {{ slot.counselor.location }}<br>
+                                <strong>Hospital:</strong> {{ slot.counselor.hospital }}<br>
+                                <strong>Date & Time:</strong> {{ slot.slot_time|date:"M d, Y" }} at {{ slot.slot_time|time:"H:i" }}
+                            </p>
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="slot_id" value="{{ slot.id }}">
+                                <button type="submit" class="btn btn-success">Book This Slot</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
         </div>
-        <form method="post">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-success">Book This Slot</button>
-        </form>
     {% else %}
         <div class="alert alert-warning">No available slots at this time.</div>
     {% endif %}

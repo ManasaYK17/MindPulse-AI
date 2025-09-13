@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="text-center mb-4">Mental Health Recommendations</h2>
+    <p class="text-center mb-4">Based on your assessment, here are some helpful resources to support your mental well-being.</p>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Relaxation Techniques</h5>
+                </div>
+                <div class="card-body">
+                    <ul>
+                        <li>Deep breathing exercises</li>
+                        <li>Progressive muscle relaxation</li>
+                        <li>Mindfulness meditation</li>
+                        <li>Guided imagery</li>
+                    </ul>
+                    <a href="#" class="btn btn-primary">View Relaxation Tips</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Meditation Videos</h5>
+                </div>
+                <div class="card-body">
+                    <p>Short guided meditation sessions for stress relief and mental clarity.</p>
+                    <a href="#" class="btn btn-primary">Watch Meditation Videos</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Mental Exercises</h5>
+                </div>
+                <div class="card-body">
+                    <ul>
+                        <li>Positive affirmations</li>
+                        <li>Gratitude journaling</li>
+                        <li>Cognitive reframing</li>
+                        <li>Goal setting exercises</li>
+                    </ul>
+                    <a href="#" class="btn btn-primary">Try Mental Exercises</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Additional Resources</h5>
+                </div>
+                <div class="card-body">
+                    <p>More resources to support your mental health journey.</p>
+                    <a href="{% url 'chatbot' %}" class="btn btn-secondary">Talk to AI Assistant</a>
+                    <a href="{% url 'wellness_activity' %}" class="btn btn-secondary">Daily Wellness Tasks</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mt-4">
+        <a href="{% url 'chatbot' %}" class="btn btn-outline-primary">Back to Chatbot</a>
+    </div>
+</div>
+{% endblock %}

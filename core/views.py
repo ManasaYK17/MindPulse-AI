@@ -13,8 +13,9 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
+from django.db.models import Q
 from .forms import AppointmentForm, WellnessTaskForm
-from .models import AssessmentQuestion, Appointment, Counselor, PeerSupport, WellnessTask, TemplateWellnessTask, AppointmentSlot
+from .models import AssessmentQuestion, Appointment, Counselor, PeerSupport, WellnessTask, TemplateWellnessTask, AppointmentSlot, PeerChatSession, PeerChatMessage
 
 from django.contrib.auth.models import User
 from datetime import datetime, date
@@ -25,6 +26,9 @@ from .zoom_utils import create_zoom_meeting
 def is_admin(user):
     return user.is_superuser
 
+from django.contrib.auth.decorators import login_required
+
+@login_required
 def home(request):
     return render(request, 'core/home.html')
 
@@ -70,17 +74,22 @@ def assessment(request):
                 request.session['assessment_index'] = index
 
     if not show_intro and index >= total_questions:
+        # Show the last question with view results button
+        question = questions[-1] if questions else None
+        index = total_questions - 1
+
+    if request.method == 'POST' and 'view_results' in request.POST:
         # All questions answered, analyze
         phq9_score = sum(answers[:9]) if len(answers) >= 9 else 0
         gad7_score = sum(answers[9:16]) if len(answers) >= 16 else 0
-        # AI analysis
-        prompt = f"A student completed a mental health assessment. PHQ-9 score: {phq9_score}, GAD-7 score: {gad7_score}. Give a brief, supportive analysis and next steps."
-    ai_response = get_gemini_response(prompt, role='mental health assistant')
+        # Store scores in session for result page
+        request.session['phq9_score'] = phq9_score
+        request.session['gad7_score'] = gad7_score
         # Clear session
         del request.session['assessment_answers']
         del request.session['assessment_index']
         del request.session['assessment_intro']
-        return render(request, 'core/assessment_result.html', {'phq9_score': phq9_score, 'gad7_score': gad7_score, 'ai_response': ai_response})
+        return redirect('assessment_result')
 
     ai_chat_response = None
 
@@ -114,19 +123,6 @@ def assessment(request):
                 prompt = f"A student is taking a mental health assessment. The current question is: '{question.text}'. The student asks: '{user_message}'. Please answer as a supportive mental health assistant."
                 ai_chat_response = get_gemini_response(prompt, role='mental health assistant')
 
-    if index >= total_questions:
-        # All questions answered, analyze
-        phq9_score = sum(answers[:9]) if len(answers) >= 9 else 0
-        gad7_score = sum(answers[9:16]) if len(answers) >= 16 else 0
-        # AI analysis
-        prompt = f"A student completed a mental health assessment. PHQ-9 score: {phq9_score}, GAD-7 score: {gad7_score}. Give a brief, supportive analysis and next steps."
-    ai_response = get_gemini_response(prompt, role='mental health assistant')
-        # Clear session
-        del request.session['assessment_answers']
-        del request.session['assessment_index']
-        del request.session['assessment_intro']
-        return render(request, 'core/assessment_result.html', {'phq9_score': phq9_score, 'gad7_score': gad7_score, 'ai_response': ai_response})
-
     return render(request, 'core/assessment_step.html', {
         'question': question,
         'index': index+1,
@@ -136,23 +132,129 @@ def assessment(request):
 
 @login_required
 def assessment_result(request):
-    # Placeholder: implement score analysis and AI logic
-    return render(request, 'core/assessment_result.html')
+    phq9_score = request.session.get('phq9_score')
+    gad7_score = request.session.get('gad7_score')
+
+    if phq9_score is None or gad7_score is None:
+        # If no scores in session, redirect to assessment start
+        return redirect('assessment')
+
+    # Determine risk level based on scores (example thresholds)
+    if phq9_score < 5 and gad7_score < 5:
+        risk_level = 'low'
+    elif phq9_score < 15 and gad7_score < 15:
+        risk_level = 'medium'
+    else:
+        risk_level = 'high'
+
+    # Clear scores from session after use
+    del request.session['phq9_score']
+    del request.session['gad7_score']
+
+    # For low risk, show recommendations button
+    # For medium risk, show peer support button
+    # For high risk, show counselor selection and booking
+
+    counselors = None
+    if risk_level == 'high':
+        counselors = Counselor.objects.all()
+
+    return render(request, 'core/assessment_result.html', {
+        'phq9_score': phq9_score,
+        'gad7_score': gad7_score,
+        'risk_level': risk_level,
+        'counselors': counselors
+    })
+
+@login_required
+def recommendations(request):
+    # Show relaxation tips, meditation videos, mental exercises
+    return render(request, 'core/recommendations.html')
 
 @login_required
 def peer_support(request):
-    # Placeholder: implement peer support chat logic
-    return render(request, 'core/peer_support.html')
+    user = request.user
+
+    # Check if user already has an active chat session
+    existing_session = PeerChatSession.objects.filter(
+        (Q(user1=user) | Q(user2=user)) & Q(active=True)
+    ).first()
+
+    if existing_session:
+        session = existing_session
+    else:
+        # Try to find another user without an active session
+        other_users = User.objects.exclude(id=user.id).exclude(is_superuser=True)
+        available_user = None
+        for u in other_users:
+            if not PeerChatSession.objects.filter(
+                (Q(user1=u) | Q(user2=u)) & Q(active=True)
+            ).exists():
+                available_user = u
+                break
+
+        if available_user:
+            # Create a new session with the available user
+            session = PeerChatSession.objects.create(user1=user, user2=available_user)
+        else:
+            # No available user, create a session for later pairing
+            # For now, create a dummy session or show waiting
+            # To make it work, I'll create a session with the user as both, but that's not ideal
+            # For demo, I'll pair with the first other user if exists
+            if other_users.exists():
+                session = PeerChatSession.objects.create(user1=user, user2=other_users.first())
+            else:
+                # No other users, show waiting
+                return render(request, 'core/peer_support.html', {'waiting': True})
+
+    # Handle message sending
+    if request.method == 'POST' and 'message' in request.POST:
+        message_text = request.POST.get('message').strip()
+        if message_text:
+            PeerChatMessage.objects.create(session=session, sender=user, message=message_text)
+            # Redirect to avoid duplicate form submission on refresh
+            return redirect('peer_support')
+
+    # Get all messages for the session
+    messages = PeerChatMessage.objects.filter(session=session).order_by('timestamp')
+
+    # Determine the peer
+    peer = session.user2 if session.user1 == user else session.user1
+
+    return render(request, 'core/peer_support.html', {
+        'session': session,
+        'messages': messages,
+        'peer': peer,
+        'waiting': False
+    })
 
 @login_required
 def future_you(request):
-    ai_response = None
+    # Initialize conversation history in session if not present
+    if 'future_you_conversation' not in request.session:
+        request.session['future_you_conversation'] = []
+
+    conversation = request.session['future_you_conversation']
+
     if request.method == 'POST':
         user_message = request.POST.get('user_message')
         if user_message:
-            prompt = f"You are the user, but 10 years older. Motivate and respond as their future self. User says: {user_message}"
-        ai_response = get_gemini_response(prompt, role='future self')
-    return render(request, 'core/future_you.html', {'ai_response': ai_response})
+            # Add user message to conversation
+            conversation.append({'role': 'user', 'message': user_message})
+            # Build prompt with conversation history
+            prompt = "You are the user, but 10 years older. Motivate and respond as their future self. Conversation history:\n"
+            for msg in conversation:
+                if msg['role'] == 'user':
+                    prompt += f"User: {msg['message']}\n"
+                else:
+                    prompt += f"Future Self: {msg['message']}\n"
+            prompt += "Future Self:"
+            ai_response = get_gemini_response(prompt, role='future self')
+            # Add AI response to conversation
+            conversation.append({'role': 'ai', 'message': ai_response})
+            request.session['future_you_conversation'] = conversation
+
+    return render(request, 'core/future_you.html', {'conversation': conversation})
 
 @login_required
 def appointment_list(request):
@@ -163,46 +265,53 @@ def appointment_list(request):
 @login_required
 def book_appointment(request):
     user = request.user
-    # Find the next available slot (not booked, soonest)
-    slot = AppointmentSlot.objects.filter(is_booked=False).order_by('slot_time').first()
-    if not slot:
-        return render(request, 'core/book_appointment.html', {'form': None, 'error': 'No available slots. Please try again later.'})
+    slot_id = request.POST.get('slot_id')
 
-    if request.method == 'POST':
-        # Mark slot as booked
-        slot.is_booked = True
-        slot.save()
-        # Create Appointment
-        appointment = Appointment.objects.create(
-            user=user,
-            counselor=slot.counselor,
-            date=slot.slot_time,
-            status='Confirmed'
-        )
-        # Send WhatsApp to counselor
-        counselor = slot.counselor
-        message = f"You have a new booking with {user.username} on {slot.slot_time.strftime('%Y-%m-%d %H:%M')}."
-        send_whatsapp_message(counselor.contact, message)
-        # Create Zoom meeting
-        zoom_url, zoom_err = create_zoom_meeting(
-            topic=f"Counseling Session: {user.username}",
-            start_time=slot.slot_time,
-            duration=30
-        )
-        # Optionally, send Zoom link to both counselor and user (WhatsApp/email)
-        if zoom_url:
-            send_whatsapp_message(counselor.contact, f"Zoom meeting link: {zoom_url}")
-            if hasattr(user, 'profile') and getattr(user.profile, 'phone', None):
-                send_whatsapp_message(user.profile.phone, f"Your counseling session Zoom link: {zoom_url}")
-        return redirect('appointment_list')
+    if request.method == 'POST' and slot_id:
+        # User selected a slot to book
+        try:
+            slot = AppointmentSlot.objects.get(id=slot_id, is_booked=False)
+            # Mark slot as booked
+            slot.is_booked = True
+            slot.save()
+            # Create Appointment
+            appointment = Appointment.objects.create(
+                user=user,
+                counselor=slot.counselor,
+                date=slot.slot_time,
+                status='Confirmed'
+            )
+            # Send WhatsApp to counselor
+            counselor = slot.counselor
+            message = f"You have a new booking with {user.username} on {slot.slot_time.strftime('%Y-%m-%d %H:%M')}."
+            send_whatsapp_message(counselor.contact, message)
+            # Create Zoom meeting
+            zoom_url, zoom_err = create_zoom_meeting(
+                topic=f"Counseling Session: {user.username}",
+                start_time=slot.slot_time,
+                duration=30
+            )
+            # Optionally, send Zoom link to both counselor and user (WhatsApp/email)
+            if zoom_url:
+                send_whatsapp_message(counselor.contact, f"Zoom meeting link: {zoom_url}")
+                if hasattr(user, 'profile') and getattr(user.profile, 'phone', None):
+                    send_whatsapp_message(user.profile.phone, f"Your counseling session Zoom link: {zoom_url}")
+            return redirect('appointment_list')
+        except AppointmentSlot.DoesNotExist:
+            return render(request, 'core/book_appointment.html', {'slots': [], 'error': 'Selected slot is no longer available.'})
 
-    # Show slot info for confirmation
-    return render(request, 'core/book_appointment.html', {'form': None, 'slot': slot})
+    # Get all available slots ordered by time
+    slots = AppointmentSlot.objects.filter(is_booked=False).order_by('slot_time')
+    if not slots:
+        return render(request, 'core/book_appointment.html', {'slots': [], 'error': 'No available slots at this time.'})
+
+    return render(request, 'core/book_appointment.html', {'slots': slots})
 
 @login_required
 def profile(request):
     tasks = WellnessTask.objects.filter(assigned_to=request.user)
-    return render(request, 'core/profile.html', {'tasks': tasks})
+    today = date.today()
+    return render(request, 'core/profile.html', {'tasks': tasks, 'today': today})
 
 @login_required
 def wellness_activity(request):

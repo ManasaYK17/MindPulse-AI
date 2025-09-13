@@ -124,12 +124,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Redirect to chatbot after login
 LOGIN_REDIRECT_URL = '/chatbot/'
 
+# Redirect to login page for @login_required decorator
+LOGIN_URL = '/login/'
+
 
 # Gemini API Key (set this in your environment or here for dev only)
-GEMINI_API_KEY = '
+GEMINI_API_KEY = ''
 
 # Twilio WhatsApp API credentials (set these in your environment for production)
-TWILIO_ACCOUNT_SID = '  # Your Twilio Account SID
+TWILIO_ACCOUNT_SID = ' ' # Your Twilio Account SID
 TWILIO_AUTH_TOKEN = ''   # Your Twilio Auth Token
 TWILIO_WHATSAPP_FROM = ''  # Your Twilio WhatsApp-enabled number (e.g. +14155238886)
 
@@ -139,4 +142,4 @@ ZOOM_API_SECRET = ''  # Your Zoom API Secret
 ZOOM_USER_ID = ''  # Your Zoom user ID (email or user id)
 
 # Gemini API Key (set this in your environment or here for dev only)
-GEMINI_API_KEY = ''
+GEMINI_API_KEY =''

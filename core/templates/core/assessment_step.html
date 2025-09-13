@@ -15,11 +15,16 @@
                 <div class="form-text">Type 0, 1, 2, or 3 to answer. Or ask a question for AI help.</div>
             </div>
         </form>
+
         {% if ai_chat_response %}
             <div class="alert alert-info w-75 mx-auto">{{ ai_chat_response }}</div>
         {% endif %}
     {% else %}
         <p>Assessment complete.</p>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" name="view_results" class="btn btn-success btn-lg">View Results</button>
+        </form>
     {% endif %}
 </div>
 {% endblock %}

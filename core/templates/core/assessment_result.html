@@ -6,9 +6,45 @@
         <strong>PHQ-9 Score:</strong> {{ phq9_score }}<br>
         <strong>GAD-7 Score:</strong> {{ gad7_score }}
     </div>
-    {% if ai_response %}
-        <div class="alert alert-info">{{ ai_response }}</div>
+    <div class="mb-3">
+        <strong>Risk Level:</strong> {{ risk_level|title }}
+    </div>
+
+    {% if risk_level == 'low' %}
+        <p>Your assessment indicates a low risk level. Here are some tips to overcome stress and anxiety:</p>
+        <div class="alert alert-success">
+            <h5>Tips to Overcome Stress and Anxiety:</h5>
+            <ul class="text-start">
+                <li>Practice deep breathing exercises: Inhale slowly for 4 counts, hold for 4, exhale for 4.</li>
+                <li>Take short walks in nature to clear your mind.</li>
+                <li>Write down 3 things you're grateful for each day.</li>
+                <li>Limit screen time before bed and establish a regular sleep schedule.</li>
+                <li>Try progressive muscle relaxation: Tense and release each muscle group.</li>
+            </ul>
+            <p><strong>Watch this helpful video:</strong></p>
+            <iframe width="560" height="315" src="https://www.youtube.com/embed/sfSDQRdIvTc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </div>
+        <a href="{% url 'recommendations' %}" class="btn btn-success">View More Recommendations</a>
+    {% elif risk_level == 'medium' %}
+        <p>Your assessment indicates a medium risk level. Consider connecting with peer support for additional help.</p>
+        <a href="{% url 'peer_support' %}" class="btn btn-warning me-2">Go to Peer Support</a>
+        <a href="{% url 'recommendations' %}" class="btn btn-info">View More Recommendations</a>
+    {% elif risk_level == 'high' %}
+        <p>Your assessment indicates a high risk level. Please select a counselor below to book an appointment.</p>
+        {% if counselors %}
+            <ul class="list-group mb-3">
+                {% for counselor in counselors %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ counselor.name }} - {{ counselor.location }}
+                        <a href="{% url 'book_appointment' %}?counselor_id={{ counselor.id }}" class="btn btn-danger btn-sm">Book Appointment</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No counselors available at the moment. Please try again later.</p>
+        {% endif %}
     {% endif %}
-    <a href="{% url 'chatbot' %}" class="btn btn-primary mt-3">Back to Chatbot</a>
+
+    <a href="{% url 'chatbot' %}" class="btn btn-secondary mt-3">Back to Chatbot</a>
 </div>
 {% endblock %}

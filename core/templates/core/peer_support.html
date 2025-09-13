@@ -1,8 +1,73 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="container mt-5 text-center">
-    <h2>Peer Support Forum</h2>
-    <p>Connect with other students facing similar challenges. (Feature coming soon)</p>
-    <a href="{% url 'chatbot' %}" class="btn btn-primary mt-3">Back to Chatbot</a>
+<style>
+    .chat-messages {
+        background-color: #f8f9fa;
+        border-radius: 5px;
+    }
+    .message {
+        margin-bottom: 10px;
+        padding: 5px;
+        border-radius: 5px;
+    }
+    .message.text-end {
+        background-color: #007bff;
+        color: white;
+    }
+    .message.text-start {
+        background-color: #e9ecef;
+        color: black;
+    }
+</style>
+<div class="container mt-5">
+    <h2 class="text-center">Peer Support Chat</h2>
+    {% if waiting %}
+        <div class="alert alert-info text-center">
+            <h4>Waiting for a peer...</h4>
+            <p>We're looking for another user to connect with you. Please wait or try again later.</p>
+            <a href="{% url 'chatbot' %}" class="btn btn-primary">Back to Chatbot</a>
+        </div>
+    {% else %}
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Chatting with {{ peer.username }}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="chat-messages" class="chat-messages" style="height: 300px; overflow-y: auto; padding: 10px; margin-bottom: 10px;">
+                            {% for message in messages %}
+                                <div class="message {% if message.sender == user %}text-end{% else %}text-start{% endif %}">
+                                    <strong>{{ message.sender.username }}:</strong> {{ message.message }}
+                                    <small class="text-muted d-block">{{ message.timestamp|date:"H:i" }}</small>
+                                </div>
+                            {% empty %}
+                                <p class="text-muted text-center">No messages yet. Start the conversation!</p>
+                            {% endfor %}
+                        </div>
+                        <form method="post" id="chat-form">
+                            {% csrf_token %}
+                            <div class="input-group">
+                                <input type="text" name="message" class="form-control" placeholder="Type your message..." required>
+                                <button type="submit" class="btn btn-primary">Send</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{% url 'chatbot' %}" class="btn btn-secondary">Back to Chatbot</a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
 </div>
+<script>
+    // Auto-scroll to bottom of chat messages
+    document.addEventListener('DOMContentLoaded', function() {
+        const chatMessages = document.getElementById('chat-messages');
+        if (chatMessages) {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    });
+</script>
 {% endblock %}
