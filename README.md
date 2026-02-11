@@ -1,6 +1,6 @@
 📌 Overview
 
-AI-Driven Mental Health Analyser is an intelligent mental wellness application designed to assess a user's mental health status through structured assessments and AI-assisted interactions.
+MindNova is an intelligent mental wellness application designed to assess a user's mental health status through structured assessments and AI-assisted interactions.
 The system provides real-time chatbot support, motivational future chats, and enables users to schedule appointments with doctors, creating a holistic mental health support platform.
 This project focuses on leveraging AI +  Healthcare Technology to promote early awareness and emotional well-being.
 
@@ -31,7 +31,7 @@ AI Components:gemini API, tensor flow
 git clone https://github.com/ManasaYK17/MindNova
 
 # Navigate into project directory
-cd ai-driven-mental-health-analyser-
+cd MindNova
 
 # Install dependencies
 pip install -r requirements.txt
